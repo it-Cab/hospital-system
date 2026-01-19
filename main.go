@@ -20,7 +20,7 @@ func main() {
 		protected.POST("/patient/add", patient.CreatePatient)
 	}
 
-	r.POST("/staff/add", staff.StaffCreate)
+	r.POST("/staff/create", staff.StaffCreate)
 	r.POST("/staff/login", staff.StaffLogin)
 
 	r.Run(":8080")
