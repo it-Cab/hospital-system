@@ -28,12 +28,12 @@ hospital-system/
 ## 🛠️ วิธีการติดตั้งและรันโปรเจกต์
 1. ตั้งค่า Environment สร้างไฟล์ .env ที่ root directory และกำหนดค่าดังนี้:
 ```bash
-DB_HOST={localhost}
 DB_PORT={PORT}
 DB_USER={your_user}
 DB_PASSWORD={your_password}
 DB_NAME={db_name}
 JWT_SECRET={secret_key}
+DB_SOURCE={db_source}
 ```
 2. รันด้วย Docker Compose
 ```bash
