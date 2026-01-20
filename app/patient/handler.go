@@ -1,7 +1,6 @@
 package patient
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -12,11 +11,17 @@ import (
 
 func GetPatientByID(c *gin.Context) {
 	id := c.Param("id")
-	staffHospital, _ := c.Get("hospital")
+	val, _ := c.Get("hospital_id")
+	staffHospitalID, ok := val.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ไม่พบข้อมูลสิทธิ์โรงพยาบาล"})
+		return
+	}
 
 	var patient models.Patient
-	fmt.Println("Searching for ID:", id)
-	result := database.DB.Where("id = ? AND hospital = ?", id, staffHospital).First(&patient)
+	result := database.DB.Preload("Hospital").
+		Where("id = ? AND hospital_id = ?", id, staffHospitalID).
+		First(&patient)
 
 	if result.Error != nil {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -28,7 +33,12 @@ func GetPatientByID(c *gin.Context) {
 }
 
 func GetPatients(c *gin.Context) {
-	staffHospital, _ := c.Get("hospital")
+	val, _ := c.Get("hospital_id")
+	staffHospital, ok := val.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ไม่พบข้อมูลสิทธิ์โรงพยาบาล"})
+		return
+	}
 	var input struct {
 		NationalID  string `json:"national_id"`
 		PassportID  string `json:"passport_id"`
@@ -43,7 +53,9 @@ func GetPatients(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ข้อมูล Input ไม่ถูกต้อง"})
 		return
 	}
-	query := database.DB.Model(&models.Patient{}).Where("hospital = ?", staffHospital)
+	query := database.DB.Model(&models.Patient{}).
+		Preload("Hospital").
+		Where("hospital_id = ?", staffHospital)
 
 	if input.NationalID != "" {
 		query = query.Where("national_id = ?", input.NationalID)
@@ -83,7 +95,7 @@ func CreatePatient(c *gin.Context) {
 	var input struct {
 		ID           string    `json:"id" binding:"required"`
 		PatientHN    string    `json:"patient_hn" binding:"required"`
-		Hospital     string    `json:"hospital" binding:"required"`
+		HospitalID   string    `json:"hospital_id" binding:"required"`
 		FirstNameTH  string    `json:"first_name_th"`
 		MiddleNameTH string    `json:"middle_name_th"`
 		LastNameTH   string    `json:"last_name_th"`
@@ -102,16 +114,27 @@ func CreatePatient(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "กรุณากรอกข้อมูลให้ครบถ้วน"})
 		return
 	}
-	staffHospital, _ := c.Get("hospital")
-	if input.Hospital != staffHospital {
+	val, _ := c.Get("hospital_id")
+	staffHospital, ok := val.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "ไม่พบข้อมูลสิทธิ์โรงพยาบาล"})
+		return
+	}
+	if input.HospitalID != staffHospital {
 		c.JSON(http.StatusForbidden, gin.H{"error": "คุณไม่มีสิทธิ์เพิ่มข้อมูลให้โรงพยาบาลอื่น"})
+		return
+	}
+
+	var hospital models.Hospital
+	if err := database.DB.First(&hospital, input.HospitalID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "รหัสโรงพยาบาลไม่ถูกต้อง"})
 		return
 	}
 
 	newPatient := models.Patient{
 		ID:           input.ID,
 		PatientHN:    input.PatientHN,
-		Hospital:     input.Hospital,
+		HospitalID:   input.HospitalID,
 		FirstNameTH:  input.FirstNameTH,
 		MiddleNameTH: input.MiddleNameTH,
 		LastNameTH:   input.LastNameTH,

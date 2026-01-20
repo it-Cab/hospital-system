@@ -1,8 +1,8 @@
 package staff
 
 import (
-	"os"
 	"net/http"
+	"os"
 	"time"
 
 	"example.com/myapp/app/database"
@@ -15,10 +15,10 @@ var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
 func StaffCreate(c *gin.Context) {
 	var input struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
-		Hospital string `json:"hospital" binding:"required"`
-		FullName string `json:"full_name"`
+		Username   string `json:"username" binding:"required"`
+		Password   string `json:"password" binding:"required"`
+		HospitalID string `json:"hospital_id" binding:"required"`
+		FullName   string `json:"full_name"`
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -27,10 +27,10 @@ func StaffCreate(c *gin.Context) {
 	}
 
 	newStaff := models.Staff{
-		Username: input.Username,
-		Password: input.Password,
-		Hospital: input.Hospital,
-		FullName: input.FullName,
+		Username:   input.Username,
+		Password:   input.Password,
+		HospitalID: input.HospitalID,
+		FullName:   input.FullName,
 	}
 
 	if err := database.DB.Create(&newStaff).Error; err != nil {
@@ -43,9 +43,9 @@ func StaffCreate(c *gin.Context) {
 
 func StaffLogin(c *gin.Context) {
 	var credentials struct {
-		Username string `json:"username" binding:"required"`
-		Password string `json:"password" binding:"required"`
-		Hospital string `json:"hospital" binding:"required"`
+		Username   string `json:"username" binding:"required"`
+		Password   string `json:"password" binding:"required"`
+		HospitalID string `json:"hospital_id" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&credentials); err != nil {
@@ -54,18 +54,19 @@ func StaffLogin(c *gin.Context) {
 	}
 
 	var staff models.Staff
-	result := database.DB.Where("username = ? AND password = ? AND hospital = ?", 
-		credentials.Username, credentials.Password, credentials.Hospital).First(&staff)
+	result := database.DB.Preload("Hospital").
+		Where("username = ? AND password = ? AND hospital_id = ?",
+			credentials.Username, credentials.Password, credentials.HospitalID).First(&staff)
 
 	if result.Error != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username, Password หรือ Hospital ไม่ถูกต้อง"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username, Password หรือ HospitalID ไม่ถูกต้อง"})
 		return
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": staff.Username,
-		"hospital": staff.Hospital,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(), // Expire in 24 hr.
+		"username":    staff.Username,
+		"hospital_id": staff.HospitalID,
+		"exp":         time.Now().Add(time.Hour * 24).Unix(), // Expire in 24 hr.
 	})
 
 	tokenString, err := token.SignedString(jwtKey)

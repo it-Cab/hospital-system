@@ -20,8 +20,9 @@ func InitDB() {
 		log.Fatal(err)
 	}
 
-	DB.AutoMigrate(&models.Patient{}, &models.Staff{})
+	DB.AutoMigrate(&models.Hospital{}, &models.Patient{}, &models.Staff{})
 
+	seedHospital()
 	seedPatient()
 }
 
@@ -33,7 +34,7 @@ func seedPatient() {
 		newPatient := models.Patient{
 			ID:          "001",
 			PatientHN:   "HN123456",
-			Hospital:    "BKK Hospital",
+			HospitalID:  "1",
 			FirstNameTH: "สมชาย",
 			LastNameTH:  "รักดี",
 			FirstNameEN: "Somchai",
@@ -51,4 +52,29 @@ func seedPatient() {
 			log.Println("Successfully seeded first patient data!")
 		}
 	}
+}
+
+func seedHospital() {
+    var count int64
+    DB.Model(&models.Hospital{}).Count(&count)
+
+    if count == 0 {
+        hospitals := []models.Hospital{
+            {
+                ID:      "1",
+                Name:    "BKK Hospital",
+                Address: "Bangkok, Thailand",
+            },
+            {
+                ID:      "2",
+                Name:    "Bangna Medical",
+                Address: "Samut Prakan, Thailand",
+            },
+        }
+
+        for _, h := range hospitals {
+            DB.Create(&h)
+        }
+        log.Println("Successfully seeded hospitals!")
+    }
 }

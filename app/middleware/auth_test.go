@@ -11,19 +11,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// ฟังก์ชันช่วยสร้าง Token สำหรับใช้ใน Test Case ต่างๆ
-func createTestToken(hospital string, expired bool) string {
+func createTestToken(hospitalId uint, expired bool) string {
 	expiration := time.Now().Add(time.Hour * 1).Unix()
 	if expired {
-		expiration = time.Now().Add(-time.Hour * 1).Unix() // ย้อนเวลาให้ Expired
+		expiration = time.Now().Add(-time.Hour * 1).Unix()
 	}
 
 	claims := jwt.MapClaims{
-		"hospital": hospital,
+		"hospital_id": hospitalId,
 		"exp":      expiration,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// หมายเหตุ: jwtKey ต้องถูกประกาศใน package middleware
+
 	tokenString, _ := token.SignedString(jwtKey)
 	return tokenString
 }
@@ -31,12 +30,11 @@ func createTestToken(hospital string, expired bool) string {
 func TestAuthMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// กำหนด Key สำหรับ Test (กรณีใน Env ไม่มีค่า)
 	if len(jwtKey) == 0 {
 		jwtKey = []byte("test_secret_key")
 	}
 
-	t.Run("ไม่มี Header Authorization - ควรได้ 401", func(t *testing.T) {
+	t.Run("No Header Authorization - 401", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, r := gin.CreateTestContext(w)
 
@@ -52,7 +50,7 @@ func TestAuthMiddleware(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "กรุณา Login ก่อนใช้งาน")
 	})
 
-	t.Run("Token ไม่ถูกต้องหรือหมดอายุ - ควรได้ 401", func(t *testing.T) {
+	t.Run("Invalid or Expire Token - 401", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, r := gin.CreateTestContext(w)
 
@@ -61,38 +59,36 @@ func TestAuthMiddleware(t *testing.T) {
 			ctx.Status(http.StatusOK)
 		})
 
-		// สร้าง Token ที่หมดอายุแล้ว
-		expiredToken := createTestToken("BKK Hospital", true)
+		expiredToken := createTestToken(01, true) //expire token
 
 		c.Request, _ = http.NewRequest("GET", "/test", nil)
-		c.Request.Header.Set("Authorization", "Bearer "+expiredToken)
+		c.Request.Header.Set("Authorization", "Bearer " + expiredToken)
 		r.ServeHTTP(w, c.Request)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		assert.Contains(t, w.Body.String(), "Token ไม่ถูกต้องหรือหมดอายุ")
 	})
 
-	t.Run("Token ถูกต้อง - ควรได้ 200 และมีการ Set Context", func(t *testing.T) {
+	t.Run("Valid Token - 200", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, r := gin.CreateTestContext(w)
 
-		var hospitalInContext string
+		var hospitalInContext uint
 
 		r.Use(AuthMiddleware())
 		r.GET("/test", func(ctx *gin.Context) {
-			// ตรวจสอบว่าค่า hospital ถูกส่งต่อมาถึง Handler จริงไหม
-			h, _ := ctx.Get("hospital")
-			hospitalInContext = h.(string)
+			h, _ := ctx.Get("hospital_id")
+			hospitalInContext = h.(uint)
 			ctx.Status(http.StatusOK)
 		})
 
-		validToken := createTestToken("BKK Hospital", false)
+		validToken := createTestToken(01, false)
 
 		c.Request, _ = http.NewRequest("GET", "/test", nil)
-		c.Request.Header.Set("Authorization", "Bearer "+validToken)
+		c.Request.Header.Set("Authorization", "Bearer "+ validToken)
 		r.ServeHTTP(w, c.Request)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "BKK Hospital", hospitalInContext)
+		assert.Equal(t, uint(01), hospitalInContext)
 	})
 }

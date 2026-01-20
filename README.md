@@ -59,7 +59,7 @@ go test ./app/patient -v
 Public Endpoints
 ```bash
 #ลงทะเบียนเจ้าหน้าที่ใหม่
-POST /staff/add
+POST /staff/create
 
 #Login เพื่อรับ JWT Token
 POST /staff/login 

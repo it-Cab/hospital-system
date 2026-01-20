@@ -33,9 +33,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-            hospital, ok := claims["hospital"].(string)
+            hospital, ok := claims["hospital_id"].(string)
             if ok {
-                c.Set("hospital", hospital)
+                c.Set("hospital_id", hospital)
             }
         }
 

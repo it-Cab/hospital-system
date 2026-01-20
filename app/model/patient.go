@@ -5,7 +5,9 @@ import "time"
 type Patient struct {
 	ID        string `gorm:"primaryKey" json:"id"`
 	PatientHN string `json:"patient_hn"`
-	Hospital  string `json:"hospital"`
+
+	HospitalID string   `gorm:"not null" json:"hospital_id"`
+	Hospital   Hospital `gorm:"foreignKey:HospitalID" json:"hospital"`
 
 	FirstNameTH  string `gorm:"size:100" json:"first_name_th"`
 	MiddleNameTH string `gorm:"size:100" json:"middle_name_th"`
